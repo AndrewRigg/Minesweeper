@@ -64,34 +64,7 @@ public class Main extends Application {
 				final int index_j = j;
 				tiles[i][j] = setUpButton(tileSize, 5, 10);
 				setButtonImage(tiles[i][j], "sprites.jpg", tileSize, 0, 0, imgPxs);
-//				setUpTile(tiles[i][j], actionOnTileClicked(i, j));
-				Button thisButton = tiles[i][j];
-				thisButton.setOnAction(event -> {
-					
-					Image image = new Image("sprites.jpg");
-					System.out.println("Action on Tile Clicked");
-					ImageView imageView = new ImageView(image);
-					Rectangle2D viewportRect2;
-					if (minesLocations[index_i][index_j]) {
-						viewportRect2 = setTileRectangle(2, 0);
-					} else if (mineFrequencies[index_i][index_j] == 0) {
-						viewportRect2 = setTileRectangle(3, 0);
-						System.out.println("In actionOnTileClicked");
-						// Need to uncover all empties in grid up to numbered tiles
-						clearConnectedEmptySquares(index_i,index_j); 
-					} else {
-			            setButtonImage(thisButton, "sprites.jpg", tileSize, 3, 0, imgPxs);
-						viewportRect2 = new Rectangle2D(((mineFrequencies[index_i][index_j] - 1) % 4) * imgPxs,
-								(1 + (mineFrequencies[index_i][index_j] - 1) / 4) * imgPxs, imgPxs, imgPxs);
-					}
-					imageView.setFitHeight(tileSize);
-					imageView.setFitWidth(tileSize);
-					imageView.setViewport(viewportRect2);
-					
-		            // Update button1 image
-//		            setButtonImage(thisButton, "sprites.jpg", tileSize, 3, 0, imgPxs);
-//		            clearConnectedEmptySquares(index_i,index_j);
-		        });
+				setUpTile(i, j);
 				gridPane.add(tiles[i][j], i, j);
 			}
 		}
@@ -106,16 +79,13 @@ public class Main extends Application {
 		scorePane.setHgap(25);
 		scorePane.setAlignment(Pos.CENTER);
 		scorePane.add(timer, 2, 0);
-
 		ColumnConstraints cc = new ColumnConstraints();
 		cc.setPercentWidth(100 / 3);
 		scorePane.getColumnConstraints().add(cc);
 		scorePane.getColumnConstraints().add(cc);
 		scorePane.getColumnConstraints().add(cc);
-
 		bPane.setTop(scorePane);
 		bPane.setCenter(gridPane);
-
 		Scene scene = new Scene(bPane, tileSize * gridWidth + 2 * 5,
 				tileSize * gridHeight + 2 * 5 + smileySizeBackground + 5);
 		scene.getStylesheets().add(getClass().getResource("application.css").toExternalForm());
@@ -141,10 +111,6 @@ public class Main extends Application {
 		return label;
 	}
 
-	private Background defaultBackground() {
-		return (new Background(new BackgroundFill(Color.BLACK, new CornerRadii(0), new Insets(0))));
-	}
-
 	private void setUpSmiley() {
 		setButtonImage(smiley, "smileys.png", smileySize, 0, 0, smileyPxs);
 		setButtonImage(smileyBackground, "sprites.jpg", smileySizeBackground, 0, 0, imgPxs);
@@ -155,20 +121,23 @@ public class Main extends Application {
 			}
 		});
 		smiley.setOnMousePressed(event -> {
-			System.out.println("Mouse Pressed");
+//			System.out.println("Mouse Pressed");
 			if (event.getButton() == MouseButton.PRIMARY) {
 				setButtonImage(smileyBackground, "sprites.jpg", smileySizeBackground, 3 * imgPxs, 0, imgPxs);
 			}
 		});
 		smiley.setOnMouseReleased(event -> {
-			System.out.println("Mouse Released");
+//			System.out.println("Mouse Released");
 			if (event.getButton() == MouseButton.PRIMARY) {
 				setButtonImage(smileyBackground, "sprites.jpg", smileySizeBackground, 0, 0, imgPxs);
+				timerT.cancel();
+				time = 0;
+				timer.setText(fillZeroes(time));
 				resetBoard();
 			}
 		});
 		smileyBackground.setOnMousePressed(event -> {
-			System.out.println("Mouse Pressed");
+//			System.out.println("Mouse Pressed");
 			if (event.getButton() == MouseButton.PRIMARY) {
 				setButtonImage(smileyBackground, "sprites.jpg", smileySizeBackground, 3 * imgPxs, 0, imgPxs);
 			}
@@ -260,106 +229,91 @@ public class Main extends Application {
 		}
 	}
 	
-//	private void resetBoard() {
-//	for (int i = 0; i < gridWidth; i++) {
-//		for(int j = 0; j < gridHeight; j++) {
-//			Button button = (Button) getNodeByRowColumnIndex (i, j);
-//			setButtonImage(button, "sprites.jpg", tileSize, 0, 0, imgPxs);
-//		}
-//	}
-//}
-	
-	private void setUpTile(Button tile, ImageView image) {
-		tile.setOnMouseClicked(event -> {
+	private void setUpTile(int i, int j) {
+		Button thisTile = tiles[i][j];
+		ImageView thisImage = updateImageView(i, j);
+		tiles[i][j].setOnMouseClicked(event -> {
 			if (event.getButton() == MouseButton.PRIMARY) {
-				tile.setGraphic(image);
+				if(mineFrequencies[i][j] == 0) {
+					mineFrequencies[i][j] = 1;
+					clearConnectedEmptySquares(i,j); 
+				}
+				tiles[i][j].setGraphic(thisImage);
 			} else if (event.getButton() == MouseButton.SECONDARY) {
-				setButtonImage(tile, "sprites.jpg", tileSize, imgPxs, 0, imgPxs);
+				setButtonImage(tiles[i][j], "sprites.jpg", tileSize, imgPxs, 0, imgPxs);
 				mineCounter--;
-				System.out.println("Mines: " + mineCounter);
+//				System.out.println("Mines: " + mineCounter);
 				mineCounterStr = fillZeroes(mineCounter);
 				scoreboard.setText(mineCounterStr);
 			}
 		});
-		tile.setOnMousePressed(event -> {
-			System.out.println("Mouse Pressed");
+		tiles[i][j].setOnMousePressed(event -> {
+//			System.out.println("Mouse Pressed");
 			if (event.getButton() == MouseButton.PRIMARY) {
 				setButtonImage(smiley, "smileys.png", smileySize, smileyPxs, 0, smileyPxs);
 				if (firstTime) {
-					setButtonImage(tile, "sprites.jpg", tileSize, 3 * imgPxs, 0, imgPxs);
-					// firstTime = false;
+					setButtonImage(tiles[i][j], "sprites.jpg", tileSize, 3 * imgPxs, 0, imgPxs);
 				}
 			}
 		});
-		tile.setOnMouseReleased(event -> {
-			System.out.println("Mouse Released");
+		tiles[i][j].setOnMouseReleased(event -> {
+//			System.out.println("Mouse Released");
 			if (event.getButton() == MouseButton.PRIMARY) {
-				setButtonImage(smiley, "smileys.png", smileySize, 0, 0, smileyPxs);
-				if (time == 0) {
-					timerT.scheduleAtFixedRate(task, 2, 1000);
+				if (minesLocations[i][j]) {
+					setButtonImage(smiley, "smileys.png", smileySize, smileyPxs, smileyPxs, smileyPxs);
+				} 
+				else {
+					setButtonImage(smiley, "smileys.png", smileySize, 0, 0, smileyPxs);
+					if (time == 0) {
+						timerT.scheduleAtFixedRate(task, 2, 1000);
+					}
 				}
 			}
 		});
 	}
 
-//	private void setUpButtonActions(Button tile, int i, int j) {
-//		tile.setOnMouseClicked(event -> {
-//			if (event.getButton() == MouseButton.PRIMARY) {
-//				if (firstTime) {
-//					generateMines();
-//					populateMineFrequencies();
-//				} else {
-//					actionOnTileClicked(i, j);
-//				}
-//			} else if (event.getButton() == MouseButton.SECONDARY) {
-//				setButtonImage(tile, "sprites.jpg", tileSize, imgPxs, 0, imgPxs);
-//				mineCounter--;
-//				System.out.println("Mines: " + mineCounter);
-//				mineCounterStr = fillZeroes(mineCounter);
-//				scoreboard.setText(mineCounterStr);
-//			}
-//		});
-//		tile.setOnMousePressed(event -> {
-//			System.out.println("Mouse Pressed");
-//			if (event.getButton() == MouseButton.PRIMARY) {
-//				setButtonImage(smiley, "smileys.png", smileySize, smileyPxs, 0, smileyPxs);
-////				if(firstTime) {
-////					setButtonImage(tile, "sprites.jpg", tileSize, 3*imgPxs, 0, imgPxs);
-////					//firstTime = false;
-////				}
-//			}
-//		});
-//		tile.setOnMouseReleased(event -> {
-//			System.out.println("Mouse Released");
-//			if (event.getButton() == MouseButton.PRIMARY) {
-//				setButtonImage(smiley, "smileys.png", smileySize, 0, 0, smileyPxs);
-//				if (time == 0) {
-//					timerT.scheduleAtFixedRate(task, 2, 1000);
-//				}
-//			}
-//		});
-//	}
-
-	private ImageView actionOnTileClicked(int i, int j) {
+	private ImageView updateImageView(int i, int j) {
 		Image image = new Image("sprites.jpg");
-		System.out.println("Action on Tile Clicked");
 		ImageView imageView = new ImageView(image);
+		imageView.setFitHeight(tileSize);
+		imageView.setFitWidth(tileSize);
+		imageView.setViewport(setViewPort(i, j));
+		return imageView;
+	}
+	
+	private Rectangle2D setViewPort(int i, int j) {
 		Rectangle2D viewportRect2;
 		if (minesLocations[i][j]) {
 			viewportRect2 = setTileRectangle(2, 0);
-		} else if (mineFrequencies[i][j] == 0) {
+		} 
+		else if (mineFrequencies[i][j] == 0) {
 			viewportRect2 = setTileRectangle(3, 0);
-			System.out.println("In actionOnTileClicked");
 			// Need to uncover all empties in grid up to numbered tiles
-			clearConnectedEmptySquares(i,j); 
+//			clearConnectedEmptySquares(i,j); 
 		} else {
 			viewportRect2 = new Rectangle2D(((mineFrequencies[i][j] - 1) % 4) * imgPxs,
 					(1 + (mineFrequencies[i][j] - 1) / 4) * imgPxs, imgPxs, imgPxs);
 		}
-		imageView.setFitHeight(tileSize);
-		imageView.setFitWidth(tileSize);
-		imageView.setViewport(viewportRect2);
-		return imageView;
+		return viewportRect2;
+	}
+	
+	private void clearConnectedEmptySquares(int i, int j) {
+		// filter from selected square 3x3 grid from -1 -> 1 in the x and y direction
+		// for each neighbouring square, if also containing a zero, store cell and
+		// recursively check it's neighbours until all zero containing cells have been found
+		// then for all zero-containing cells, uncover it and all 8 neighbours.
+		System.out.println("In clear empty squares" + i + j );
+		for (int x = -1; x <= 1; x++) {
+			for (int y = -1; y <= 1; y++) {
+				if (!(x == 0 && y == 0) && (i + x) >= 0 && (i + x) < gridWidth && (j + y) >= 0 && (j + y) < gridHeight) {
+					if (mineFrequencies[i + x][j + y] == 0 && !firstTime) {
+						tiles[i + x][j + y].setGraphic(updateImageView(i + x, j + y));
+						mineFrequencies[i + x][j + y] = -1;
+						clearConnectedEmptySquares(i + x, i + y);
+					}
+				}
+			}
+		}
 	}
 
 	private Rectangle2D setTileRectangle(int i, int j) {
@@ -387,27 +341,10 @@ public class Main extends Application {
 						}
 					}
 				}
-				mineFrequencies[i][j] = mineCount;
-			}
-		}
-	}
-
-	private void clearConnectedEmptySquares(int i, int j) {
-		// filter from selected square 3x3 grid from -1 -> 1 in the x and y direction
-		// for each neighbouring square, if also containing a zero, store cell and
-		// recursively check it's neighbours until all zero containing cells have been
-		// found
-		// then for all zero-containing cells, uncover it and all 8 neighbours.
-		for (int x = -1; x <= 1; x++) {
-			for (int y = -1; y <= 1; y++) {
-				if (!(x == 0 && y == 0) && (i + x) >= 0 && (i + x) < gridWidth && (j + y) >= 0 && (j + y) < gridHeight) {
-					if (mineFrequencies[i + x][j + y] == 0 && !firstTime) {
-						mineFrequencies[i + x][j + y] = -1;
-						setButtonImage(tiles[i + x][j + y], "sprites.jpg", tileSize, 3, 0, imgPxs);
-
-//						updateButtonImage(tiles[i + x][j + y], new Image("file:images/newImage1.png"));
-//						tiles[i + x][j + y].setGraphic(actionOnTileClicked(i + x, j + y));
-					}
+				if (minesLocations[i][j] == true) {
+					mineFrequencies[i][j] = -1;
+				} else {
+					mineFrequencies[i][j] = mineCount;
 				}
 			}
 		}
