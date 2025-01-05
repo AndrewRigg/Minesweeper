@@ -1,8 +1,10 @@
 package application;
 
+import java.util.ArrayList;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.function.BiConsumer;
 
 import javafx.application.*;
 import javafx.collections.ObservableList;
@@ -24,6 +26,9 @@ public class Main extends Application {
 	int time = 0, mineCounter = numberOfMines;
 	String mineCounterStr = fillZeroes(mineCounter);
 	int[][] mineFrequencies = new int[gridWidth][gridHeight];
+	ArrayList<int[]> emptyCells = new ArrayList<int[]>();
+	ArrayList<int[]> nonEmptyCells = new ArrayList<int[]>();
+	ArrayList<int[]> cellsExposed = new ArrayList<int[]>();
 	int[] mines = new int[numberOfMines];
 	boolean[][] minesLocations = new boolean[gridWidth][gridHeight];
 	boolean firstTime = true;
@@ -58,17 +63,7 @@ public class Main extends Application {
 		scoreboard.setBackground(new Background(new BackgroundFill(Color.BLACK, new CornerRadii(0), new Insets(0))));
 		timer.setBackground(new Background(new BackgroundFill(Color.BLACK, new CornerRadii(0), new Insets(0))));
 		timer.setAlignment(Pos.TOP_RIGHT);
-		for (int i = 0; i < gridWidth; i++) {
-			for (int j = 0; j < gridHeight; j++) {
-				final int index_i = i;
-				final int index_j = j;
-				tiles[i][j] = setUpButton(tileSize, 5, 10);
-				setButtonImage(tiles[i][j], "sprites.jpg", tileSize, 0, 0, imgPxs);
-				setUpTile(i, j);
-				gridPane.add(tiles[i][j], i, j);
-			}
-		}
-		firstTime = false;
+		setUpCells();
 		sPane.getChildren().add(smileyBackground);
 		sPane.getChildren().add(smiley);
 		StackPane.setAlignment(smileyBackground, Pos.TOP_LEFT);
@@ -101,7 +96,36 @@ public class Main extends Application {
 			}
 		});
 	}
-
+	
+	private void setUpCells() {
+		iterateOverAllCells((i, j) -> setUpButtonsFirstTime(i, j));
+	}
+	
+	private void resetBoard() {
+		gridPane.getChildren().clear();
+		iterateOverAllCells((i, j) -> resetBoardHelper(i, j));
+	}
+	
+	private void setUpCells4() {
+		iterateOverAllCells((i, j) -> setUpButtonsFirstTime(i, j));
+	}
+	
+	
+	private void setUpButtonsFirstTime(int i, int j) {
+		tiles[i][j] = setUpButton(tileSize, 5, 10);
+		setButtonImage(tiles[i][j], "sprites.jpg", tileSize, 0, 0, imgPxs);
+		setUpTile(i, j);
+		gridPane.add(tiles[i][j], i, j);
+	}
+	
+	private void iterateOverAllCells(BiConsumer<Integer, Integer> action) {
+		for (int i = 0; i < gridWidth; i++) {
+			for (int j = 0; j < gridHeight; j++) {
+				action.accept(i, j);
+			}
+		}
+	}
+	
 	private Label setUpDisplay(String str) {
 		Label label = new Label(str);
 		label.setTextFill(Color.RED);
@@ -217,35 +241,66 @@ public class Main extends Application {
 	}
 
 	// Try instead to delete all buttons in grid and recreate them afresh
-	private void resetBoard() {
-		gridPane.getChildren().clear();
-		for (int i = 0; i < gridWidth; i++) {
-			for (int j = 0; j < gridHeight; j++) {
-				Button tile = setUpButton(tileSize, rows, columns);
-				setButtonImage(tile, "sprites.jpg", tileSize, 0, 0, imgPxs);
-//				setUpButtonActions(tile, i, j);
-				gridPane.add(tile, i, j);
-			}
-		}
+//	private void resetBoard() {
+//		gridPane.getChildren().clear();
+//		for (int i = 0; i < gridWidth; i++) {
+//			for (int j = 0; j < gridHeight; j++) {
+//				Button tile = setUpButton(tileSize, rows, columns);
+//				setButtonImage(tile, "sprites.jpg", tileSize, 0, 0, imgPxs);
+////				setUpButtonActions(tile, i, j);
+//				gridPane.add(tile, i, j);
+//			}
+//		}
+//	}
+	
+	private void resetBoardHelper(int i, int j) {
+		Button tile = setUpButton(tileSize, rows, columns);
+		setButtonImage(tile, "sprites.jpg", tileSize, 0, 0, imgPxs);
+		gridPane.add(tile, i, j);
 	}
 	
 	private void setUpTile(int i, int j) {
-		Button thisTile = tiles[i][j];
+		int [] cell = {i, j};
 		ImageView thisImage = updateImageView(i, j);
 		tiles[i][j].setOnMouseClicked(event -> {
 			if (event.getButton() == MouseButton.PRIMARY) {
+//				if(firstTime) {
+//					generateMines();
+//					populateMineFrequencies();
+//					setUpCells();
+//					firstTime = false;
+//				}
 				if(mineFrequencies[i][j] == 0) {
-					mineFrequencies[i][j] = 1;
-					clearConnectedEmptySquares(i,j); 
+					emptyCells.clear();
+					mineFrequencies[i][j] = -1;
+					collectEmptyCells(i, j); 
+					collectNonEmptyCells() ;
+					System.out.println("All elements in connected group of empty cells:");
+					for (int [] thisCell: emptyCells)
+					{
+						System.out.println(" (" + thisCell[0] + ", " + thisCell[1] + ")");
+						tiles[thisCell[0]][thisCell[1]].setGraphic(updateImageView(thisCell[0], thisCell[1]));
+						cellsExposed.add(thisCell);
+					}
+					System.out.println("All elements in connected group of non-empty cells:");
+					for (int [] nonEmpty: nonEmptyCells) {
+						System.out.println(" (" + nonEmpty[0] + ", " + nonEmpty[1] + ")");
+						tiles[nonEmpty[0]][nonEmpty[1]].setGraphic(updateImageView(nonEmpty[0], nonEmpty[1]));
+						cellsExposed.add(nonEmpty);
+					}
 				}
 				tiles[i][j].setGraphic(thisImage);
 			} else if (event.getButton() == MouseButton.SECONDARY) {
-				setButtonImage(tiles[i][j], "sprites.jpg", tileSize, imgPxs, 0, imgPxs);
-				mineCounter--;
-//				System.out.println("Mines: " + mineCounter);
-				mineCounterStr = fillZeroes(mineCounter);
-				scoreboard.setText(mineCounterStr);
+				if(!cellsExposed.contains(cell))
+				{
+					setButtonImage(tiles[i][j], "sprites.jpg", tileSize, imgPxs, 0, imgPxs);
+					mineCounter--;
+	//				System.out.println("Mines: " + mineCounter);
+					mineCounterStr = fillZeroes(mineCounter);
+					scoreboard.setText(mineCounterStr);
+				}
 			}
+			cellsExposed.add(cell);
 		});
 		tiles[i][j].setOnMousePressed(event -> {
 //			System.out.println("Mouse Pressed");
@@ -286,36 +341,70 @@ public class Main extends Application {
 		if (minesLocations[i][j]) {
 			viewportRect2 = setTileRectangle(2, 0);
 		} 
-		else if (mineFrequencies[i][j] == 0) {
+		else if (mineFrequencies[i][j] == 0 || mineFrequencies[i][j] == -1) {
 			viewportRect2 = setTileRectangle(3, 0);
-			// Need to uncover all empties in grid up to numbered tiles
-//			clearConnectedEmptySquares(i,j); 
 		} else {
-			viewportRect2 = new Rectangle2D(((mineFrequencies[i][j] - 1) % 4) * imgPxs,
-					(1 + (mineFrequencies[i][j] - 1) / 4) * imgPxs, imgPxs, imgPxs);
+			viewportRect2 = new Rectangle2D(((mineFrequencies[i][j] - 1) % 4) * imgPxs, (1 + (mineFrequencies[i][j] - 1) / 4) * imgPxs, imgPxs, imgPxs);
 		}
 		return viewportRect2;
 	}
 	
-	private void clearConnectedEmptySquares(int i, int j) {
-		// filter from selected square 3x3 grid from -1 -> 1 in the x and y direction
-		// for each neighbouring square, if also containing a zero, store cell and
-		// recursively check it's neighbours until all zero containing cells have been found
-		// then for all zero-containing cells, uncover it and all 8 neighbours.
-		System.out.println("In clear empty squares" + i + j );
-		for (int x = -1; x <= 1; x++) {
-			for (int y = -1; y <= 1; y++) {
-				if (!(x == 0 && y == 0) && (i + x) >= 0 && (i + x) < gridWidth && (j + y) >= 0 && (j + y) < gridHeight) {
-					if (mineFrequencies[i + x][j + y] == 0 && !firstTime) {
-						tiles[i + x][j + y].setGraphic(updateImageView(i + x, j + y));
-						mineFrequencies[i + x][j + y] = -1;
-						clearConnectedEmptySquares(i + x, i + y);
-					}
-				}
+	private void collectEmptyCells(int i, int j) {
+		ArrayList<int[]> cells = getNeighbouringCells(i, j, (a, b) -> checkCellEmpty(a, b));
+		for (int [] cell: cells)
+		{
+			collectEmptyCells(cell[0], cell[1]);
+		}
+	}
+	
+	private void collectNonEmptyCells() {
+		for (int [] cell: emptyCells) {
+			ArrayList<int[]> cells = getNeighbouringCells(cell[0], cell[1], (a, b) -> checkCellNotEmpty(a, b));
+		}
+	}
+	
+	private void checkCellEmpty(ArrayList<int[]> currentCells, ArrayList<Integer> coords) {
+		int a = coords.get(0);
+		int b = coords.get(1);
+		if (mineFrequencies[a][b] == 0) {
+			int[] newCell = {a, b};
+			currentCells.add(newCell);
+			if(!emptyCells.contains(newCell))
+			{
+				emptyCells.add(newCell);
+				mineFrequencies[a][b] = -1;
+			}
+		}
+	}
+	
+	private void checkCellNotEmpty(ArrayList<int[]> currentCells, ArrayList<Integer> coords) {
+		int a = coords.get(0);
+		int b = coords.get(1);
+		if (mineFrequencies[a][b] != 0 && mineFrequencies[a][b] != -1) {
+			int[] newCell = {a, b};
+			currentCells.add(newCell);
+			if(!nonEmptyCells.contains(newCell))
+			{
+				nonEmptyCells.add(newCell);
 			}
 		}
 	}
 
+	private ArrayList<int[]> getNeighbouringCells(int i, int j, BiConsumer<ArrayList<int[]>, ArrayList<Integer>> action) {
+		ArrayList<int[]> cells = new ArrayList<>();
+		for (int y = -1; y <= 1; y++) {
+			for (int x = -1; x <= 1; x++) {
+				if (!(x == 0 && y == 0) && (i + x) >= 0 && (i + x) < gridWidth && (j + y) >= 0 && (j + y) < gridHeight) {
+					ArrayList<Integer> cell = new ArrayList<Integer>();
+					cell.add(i+x);
+					cell.add(j+y);
+					action.accept(cells, cell);
+				}
+			}			
+		}
+		return cells;
+	}
+	
 	private Rectangle2D setTileRectangle(int i, int j) {
 		return new Rectangle2D(i * imgPxs, j * imgPxs, imgPxs, imgPxs);
 	}
@@ -327,26 +416,44 @@ public class Main extends Application {
 			minesLocations[mines[i] % gridWidth][mines[i] / gridWidth] = true;
 		}
 	}
-
+	
 	private void populateMineFrequencies() {
-		for (int i = 0; i < gridWidth; i++) {
-			for (int j = 0; j < gridHeight; j++) {
-				int mineCount = 0;
-				for (int x = -1; x <= 1; x++) {
-					for (int y = -1; y <= 1; y++) {
-						if (!(x == 0 && y == 0) && (i + x) >= 0 && (i + x) < gridWidth && (j + y) >= 0 && (j + y) < gridHeight) {
-							if (minesLocations[i + x][j + y] == true) {
-								mineCount++;
-							}
-						}
+		iterateOverAllCells((i, j) -> populateMineFrequenciesHelper(i, j));
+	}
+
+//	private void populateMineFrequenciesHelper(int i, int j) {
+//		int mineCount = 0;
+//		ArrayList<int[]> cells = getNeighbouringCells(i, j, (a, b) -> mineLocations(mineCount, a, b));
+//		if (minesLocations[i][j] == true) {
+//			mineFrequencies[i][j] = -1;
+//		} else {
+//			mineFrequencies[i][j] = mineCount;
+//		}
+//	}
+//	
+//	private void mineLocations(int mineCount, ArrayList<int[]> currentCells, ArrayList<Integer> coords) {
+//		int a = coords.get(0);
+//		int b = coords.get(1);
+//		if (minesLocations[a][b] == true) {
+//			mineCount++;
+//		}
+//	}
+	
+	private void populateMineFrequenciesHelper(int i, int j) {
+		int mineCount = 0;
+		for (int x = -1; x <= 1; x++) {
+			for (int y = -1; y <= 1; y++) {
+				if (!(x == 0 && y == 0) && (i + x) >= 0 && (i + x) < gridWidth && (j + y) >= 0 && (j + y) < gridHeight) {
+					if (minesLocations[i + x][j + y] == true) {
+						mineCount++;
 					}
 				}
-				if (minesLocations[i][j] == true) {
-					mineFrequencies[i][j] = -1;
-				} else {
-					mineFrequencies[i][j] = mineCount;
-				}
 			}
+		}
+		if (minesLocations[i][j] == true) {
+			mineFrequencies[i][j] = -1;
+		} else {
+			mineFrequencies[i][j] = mineCount;
 		}
 	}
 
