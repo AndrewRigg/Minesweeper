@@ -27,12 +27,10 @@ public class Main extends Application {
 	int time = 0, mineCounter = numberOfMines;
 	String mineCounterStr = fillZeroes(mineCounter);
 	int[][] mineFrequencies = new int[gridWidth][gridHeight];
-	boolean[][] flags = new boolean[gridWidth][gridHeight];
 	ArrayList<ArrayList<Integer>> emptyCells = new ArrayList<ArrayList<Integer>>(), nonEmptyCells = new ArrayList<ArrayList<Integer>>(), cellsExposed = new ArrayList<ArrayList<Integer>>();
 	int[] mines = new int[numberOfMines];
-	boolean[][] minesLocations = new boolean[gridWidth][gridHeight];
+	boolean[][] flags = new boolean[gridWidth][gridHeight], minesLocations = new boolean[gridWidth][gridHeight];
 	boolean firstTime = true;
-//	boolean[][] zeroesLocations = new boolean[gridWidth][gridHeight];
 	Label scoreboard, timer;
 	BorderPane bPane;
 	GridPane gridPane, scorePane;
@@ -50,8 +48,6 @@ public class Main extends Application {
 	Alert alert;
 
 	public void start(Stage primaryStage) {
-//		generateMines();
-//		populateMineFrequencies();
 		smiley = setUpButton(smileySize, 12, 12);
 		smileyBackground = setUpButton(smileySizeBackground, 5, 5);
 		setButtonImage(smiley, "smileys.png", smileySize, 0, 0, smileyPxs);
@@ -232,7 +228,7 @@ public class Main extends Application {
 		Node result = null;
 		ObservableList<Node> childrens = gridPane.getChildren();
 		for (Node node : childrens) {
-			if (gridPane.getRowIndex(node) == row && gridPane.getColumnIndex(node) == column) {
+			if (GridPane.getRowIndex(node) == row && GridPane.getColumnIndex(node) == column) {
 				result = node;
 				break;
 			}
@@ -248,12 +244,6 @@ public class Main extends Application {
 	
 	private ArrayList<Integer> setUpCell(int i, int j){
 		ArrayList<Integer> cell = new ArrayList<Integer>();
-		cell.add(i);
-		cell.add(j);
-		return cell;
-	}
-	
-	private ArrayList<Integer> setUpCell(int i, int j, ArrayList<Integer> cell){
 		cell.add(i);
 		cell.add(j);
 		return cell;
@@ -369,7 +359,7 @@ public class Main extends Application {
 	
 	private void collectNonEmptyCells() {
 		for (ArrayList<Integer> cell: emptyCells) {
-			ArrayList<ArrayList<Integer>> cells = getNeighbouringCells(cell.get(0), cell.get(1), (a, b) -> checkCellNotEmpty(a, b));
+			getNeighbouringCells(cell.get(0), cell.get(1), (a, b) -> checkCellNotEmpty(a, b));
 		}
 	}
 	
@@ -413,7 +403,6 @@ public class Main extends Application {
 			int neighbourX = i + offset[0];
 			int neighbourY = j + offset[1];
 				if (isValidNeighbour(neighbourX, neighbourY)) {
-//				if (!(x == 0 && y == 0) && (i + x) >= 0 && (i + x) < gridWidth && (j + y) >= 0 && (j + y) < gridHeight) {
 					ArrayList<Integer> cell = setUpCell(neighbourX, neighbourY);
 					action.accept(cells, cell);
 				}
@@ -421,32 +410,8 @@ public class Main extends Application {
 		return cells;
 	}
 	
-//	private ArrayList<int[]> getNeighbouringCells(int i, int j, BiConsumer<ArrayList<int[]>, ArrayList<Integer>> action) {
-//		ArrayList<int[]> cells = new ArrayList<>();
-//		for (int y = -1; y <= 1; y++) {
-//			for (int x = -1; x <= 1; x++) {
-//				if (isValidNeighbour(i, j, x, y)) {
-////				if (!(x == 0 && y == 0) && (i + x) >= 0 && (i + x) < gridWidth && (j + y) >= 0 && (j + y) < gridHeight) {
-//					ArrayList<Integer> cell = new ArrayList<Integer>();
-//					cell.add(i+x);
-//					cell.add(j+y);
-//					action.accept(cells, cell);
-//				}
-//			}			
-//		}
-//		return cells;
-//	}
-	
 	private Rectangle2D setTileRectangle(int i, int j) {
 		return new Rectangle2D(i * imgPxs, j * imgPxs, imgPxs, imgPxs);
-	}
-
-	private void generateMines() {
-		Random random = new Random();
-		mines = random.ints(0, gridWidth * gridHeight).distinct().limit(numberOfMines).toArray();
-		for (int i = 0; i < mines.length; i++) {
-			minesLocations[mines[i] % gridWidth][mines[i] / gridWidth] = true;
-		}
 	}
 	
 	private void generateMines(int x, int y) {
@@ -459,18 +424,12 @@ public class Main extends Application {
 				System.out.println("x, y, offset[0], offset[1]: " + x + y + offset[0] + offset[1]);
 			}
 		}
-		for(Integer xA: excluded) {
-			System.out.println("excluded number: " + xA);
-		}
 		for (int i = 0; i < numberOfMines; i++) {
 			int thisMine;
 			do {
 				thisMine = getRandomMineExcluding(excluded);
 				mines.add(thisMine);
 			} while (!mines.contains(thisMine));
-		}
-		for(Integer mine: mines) {
-			System.out.println("mine: " + mine);
 		}
 		for (int i = 0; i < numberOfMines; i++) {		
 			minesLocations[mines.get(i) % gridWidth][mines.get(i) / gridWidth] = true;
