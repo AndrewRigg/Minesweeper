@@ -27,6 +27,7 @@ public class Main extends Application {
 	int time = 0, mineCounter = numberOfMines;
 	String mineCounterStr = fillZeroes(mineCounter);
 	int[][] mineFrequencies = new int[gridWidth][gridHeight];
+	boolean[][] flags = new boolean[gridWidth][gridHeight];
 	ArrayList<ArrayList<Integer>> emptyCells = new ArrayList<ArrayList<Integer>>(), nonEmptyCells = new ArrayList<ArrayList<Integer>>(), cellsExposed = new ArrayList<ArrayList<Integer>>();
 	int[] mines = new int[numberOfMines];
 	boolean[][] minesLocations = new boolean[gridWidth][gridHeight];
@@ -270,6 +271,7 @@ public class Main extends Application {
 				System.out.println(" (" + exposed.get(0) + ", " + exposed.get(1) + ")");
 			}
 			if (event.getButton() == MouseButton.PRIMARY) {
+				flags[i][j] = false;
 				validAdd(cellsExposed, cell);
 //				if(firstTime) {
 //					generateMines();
@@ -299,12 +301,18 @@ public class Main extends Application {
 				tiles[i][j].setGraphic(thisImage);
 			} else if (event.getButton() == MouseButton.SECONDARY) {
 				if(!cellsExposed.contains(cell)) {
+					System.out.println("Here flag");
 					setButtonImage(tiles[i][j], "sprites.jpg", tileSize, imgPxs, 0, imgPxs);
 					mineCounter--;
 					System.out.println("Mines: " + mineCounter);
 					mineCounterStr = fillZeroes(mineCounter);
 					scoreboard.setText(mineCounterStr);
 					cellsExposed.add(cell);
+					flags[i][j] = true;
+				}else if(flags[i][j]){
+					System.out.println("Here not flag");
+					setButtonImage(tiles[i][j], "sprites.jpg", tileSize, 0, 0, imgPxs);
+					flags[i][j] = false;
 				}
 			}
 		});
