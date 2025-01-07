@@ -315,7 +315,11 @@ public class Main extends Application {
 //			System.out.println("Mouse Released");
 			if (event.getButton() == MouseButton.PRIMARY) {
 				if (minesLocations[i][j]) {
-					setButtonImage(smiley, "smileys.png", smileySize, smileyPxs, smileyPxs, smileyPxs);
+					if(!flags[i][j]) {
+						setButtonImage(smiley, "smileys.png", smileySize, smileyPxs, smileyPxs, smileyPxs);
+					}else {
+						setButtonImage(smiley, "smileys.png", smileySize, 0, 0, smileyPxs);
+					}
 				} 
 				else {
 					setButtonImage(smiley, "smileys.png", smileySize, 0, 0, smileyPxs);
