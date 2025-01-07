@@ -50,8 +50,8 @@ public class Main extends Application {
 	Alert alert;
 
 	public void start(Stage primaryStage) {
-		generateMines();
-		populateMineFrequencies();
+//		generateMines();
+//		populateMineFrequencies();
 		smiley = setUpButton(smileySize, 12, 12);
 		smileyBackground = setUpButton(smileySizeBackground, 5, 5);
 		setButtonImage(smiley, "smileys.png", smileySize, 0, 0, smileyPxs);
@@ -261,46 +261,40 @@ public class Main extends Application {
 	
 	private void setUpTile(int i, int j) {
 		ArrayList<Integer> cell = setUpCell(i, j);
-		ImageView thisImage = updateImageView(i, j);
 		tiles[i][j].setOnMouseClicked(event -> {
-			System.out.println("This cell: (" + i + ", " + j + ")");
-			System.out.println("Cell in Exposed Cells: " + cellsExposed.contains(cell));
-			System.out.println("Exposed Cell:");
-			for (ArrayList<Integer> exposed: cellsExposed)
-			{
-				System.out.println(" (" + exposed.get(0) + ", " + exposed.get(1) + ")");
-			}
 			if (event.getButton() == MouseButton.PRIMARY) {
-				flags[i][j] = false;
-				validAdd(cellsExposed, cell);
-//				if(firstTime) {
-//					generateMines();
-//					populateMineFrequencies();
-//					setUpCells();
-//					firstTime = false;
-//				}
-				if(mineFrequencies[i][j] == 0) {
-					emptyCells.clear();
-					mineFrequencies[i][j] = -1;
-					collectEmptyCells(i, j); 
-					collectNonEmptyCells() ;
-//					System.out.println("All elements in connected group of empty cells:");
-					for (ArrayList<Integer> thisCell: emptyCells)
-					{
-//						System.out.println(" (" + thisCell[0] + ", " + thisCell[1] + ")");
-						tiles[thisCell.get(0)][thisCell.get(1)].setGraphic(updateImageView(thisCell.get(0), thisCell.get(1)));
-						validAdd(cellsExposed, thisCell);
-					}
-//					System.out.println("All elements in connected group of non-empty cells:");
-					for (ArrayList<Integer> nonEmpty: nonEmptyCells) {
-//						System.out.println(" (" + nonEmpty[0] + ", " + nonEmpty[1] + ")");
-						tiles[nonEmpty.get(0)][nonEmpty.get(1)].setGraphic(updateImageView(nonEmpty.get(0), nonEmpty.get(1)));
-						validAdd(cellsExposed, nonEmpty);
-					}
+				if(firstTime) {
+					generateMines(i, j);
+					populateMineFrequencies();
+					firstTime = false;
 				}
-				tiles[i][j].setGraphic(thisImage);
-			} else if (event.getButton() == MouseButton.SECONDARY) {
 				if(!cellsExposed.contains(cell)) {
+					ImageView thisImage = updateImageView(i, j);
+					flags[i][j] = false;
+					validAdd(cellsExposed, cell);
+					if(mineFrequencies[i][j] == 0) {
+						emptyCells.clear();
+						mineFrequencies[i][j] = -1;
+						collectEmptyCells(i, j); 
+						collectNonEmptyCells() ;
+	//					System.out.println("All elements in connected group of empty cells:");
+						for (ArrayList<Integer> thisCell: emptyCells)
+						{
+	//						System.out.println(" (" + thisCell[0] + ", " + thisCell[1] + ")");
+							tiles[thisCell.get(0)][thisCell.get(1)].setGraphic(updateImageView(thisCell.get(0), thisCell.get(1)));
+							validAdd(cellsExposed, thisCell);
+						}
+	//					System.out.println("All elements in connected group of non-empty cells:");
+						for (ArrayList<Integer> nonEmpty: nonEmptyCells) {
+	//						System.out.println(" (" + nonEmpty[0] + ", " + nonEmpty[1] + ")");
+							tiles[nonEmpty.get(0)][nonEmpty.get(1)].setGraphic(updateImageView(nonEmpty.get(0), nonEmpty.get(1)));
+							validAdd(cellsExposed, nonEmpty);
+						}
+					}
+					tiles[i][j].setGraphic(thisImage);
+			}
+			} else if (event.getButton() == MouseButton.SECONDARY) {
+				if(!cellsExposed.contains(cell) && !flags[i][j]) {
 					System.out.println("Here flag");
 					setButtonImage(tiles[i][j], "sprites.jpg", tileSize, imgPxs, 0, imgPxs);
 					mineCounter--;
@@ -312,7 +306,12 @@ public class Main extends Application {
 				}else if(flags[i][j]){
 					System.out.println("Here not flag");
 					setButtonImage(tiles[i][j], "sprites.jpg", tileSize, 0, 0, imgPxs);
+					mineCounter++;
+					System.out.println("Mines: " + mineCounter);
+					mineCounterStr = fillZeroes(mineCounter);
+					scoreboard.setText(mineCounterStr);
 					flags[i][j] = false;
+					cellsExposed.remove(cell);
 				}
 			}
 		});
@@ -320,9 +319,6 @@ public class Main extends Application {
 //			System.out.println("Mouse Pressed");
 			if (event.getButton() == MouseButton.PRIMARY) {
 				setButtonImage(smiley, "smileys.png", smileySize, smileyPxs, 0, smileyPxs);
-				if (firstTime) {
-					setButtonImage(tiles[i][j], "sprites.jpg", tileSize, 3 * imgPxs, 0, imgPxs);
-				}
 			}
 		});
 		tiles[i][j].setOnMouseReleased(event -> {
@@ -451,6 +447,43 @@ public class Main extends Application {
 		for (int i = 0; i < mines.length; i++) {
 			minesLocations[mines[i] % gridWidth][mines[i] / gridWidth] = true;
 		}
+	}
+	
+	private void generateMines(int x, int y) {
+		ArrayList<Integer> mines = new ArrayList<>();
+		ArrayList<Integer> excluded = new ArrayList<Integer>();
+		excluded.add(y*gridWidth + x);
+		for (int[] offset : NEIGHBOR_OFFSETS) {
+			if (isValidNeighbour(x + offset[0], y + offset[1])) {
+				excluded.add((y + offset[1]) * gridWidth + (x + offset[0]));
+				System.out.println("x, y, offset[0], offset[1]: " + x + y + offset[0] + offset[1]);
+			}
+		}
+		for(Integer xA: excluded) {
+			System.out.println("excluded number: " + xA);
+		}
+		for (int i = 0; i < numberOfMines; i++) {
+			int thisMine;
+			do {
+				thisMine = getRandomMineExcluding(excluded);
+				mines.add(thisMine);
+			} while (!mines.contains(thisMine));
+		}
+		for(Integer mine: mines) {
+			System.out.println("mine: " + mine);
+		}
+		for (int i = 0; i < numberOfMines; i++) {		
+			minesLocations[mines.get(i) % gridWidth][mines.get(i) / gridWidth] = true;
+		}
+	}
+	
+	private int getRandomMineExcluding(ArrayList<Integer> excluded) {
+		Random random = new Random();
+		int rand;
+		do {
+			rand = random.nextInt(gridWidth * gridHeight);
+		} while (excluded.contains(rand));
+		return rand;
 	}
 	
 	private void populateMineFrequencies() {
