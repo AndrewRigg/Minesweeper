@@ -1,6 +1,7 @@
 package application;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -22,18 +23,31 @@ import javafx.stage.*;
 
 public class Main extends Application {
 
-	final int gridWidth = 9, gridHeight = 9, tileSize = 20, smileySize = 18, smileySizeBackground = 31, imgPxs = 266,
-			smileyPxs = 409, numberOfMines = 10, rows = 5, columns = 10;
+	final static int DEFAULT_TILE_SIZE = 16;
+	final static int DEFAULT_NO_OF_MINES = 40;
+	int gridWidth = DEFAULT_TILE_SIZE;
+	int gridHeight = DEFAULT_TILE_SIZE;
+	int tileSize = DEFAULT_TILE_SIZE;
+	int numberOfMines = DEFAULT_NO_OF_MINES;
+	int smileySize = 18;
+	int smileySizeBackground = 31;
+	int imgPxs = 32;
+	int smileyPxs = 409;
+	int rows = 5;
+	int columns = 10;
 	int time = 0, mineCounter = numberOfMines;
+	int customWidth = 16, customHeight = 16, customMines = 40;
 	String mineCounterStr = fillZeroes(mineCounter);
-	int[][] mineFrequencies = new int[gridWidth][gridHeight];
+	ArrayList<ArrayList<Integer>> mineCoords = new ArrayList<ArrayList<Integer>>();
 	ArrayList<ArrayList<Integer>> emptyCells = new ArrayList<ArrayList<Integer>>(), nonEmptyCells = new ArrayList<ArrayList<Integer>>(), cellsExposed = new ArrayList<ArrayList<Integer>>();
-	int[] mines = new int[numberOfMines];
 	boolean[][] flags = new boolean[gridWidth][gridHeight], minesLocations = new boolean[gridWidth][gridHeight];
+	int[][] mineFrequencies = new int[gridWidth][gridHeight];
 	boolean firstTime = true;
+	boolean gameOver = false, gameWon = false;
 	Label scoreboard, timer;
 	BorderPane bPane;
-	GridPane gridPane, scorePane;
+	GridPane gridPane;
+	BorderPane scorePane;
 	StackPane sPane;
 	Button smiley, smileyBackground;
 	Button [][] tiles = new Button[gridWidth][gridHeight];
@@ -43,51 +57,93 @@ public class Main extends Application {
 	    {-1,  1}, {0,  1}, {1,  1}  // Bottom row
 	};
 	Font font = Font.loadFont("file:res/fonts/Segment7Standard.otf", 25);
-	TimerTask task;
+//	TimerTask task;
 	Timer timerT;
 	Alert alert;
-
+	
+	final static int SMILEYS = 4, SMILEYS_ROW = 2;
+	final static int SPRITES = 16, SPRITES_ROW = 4;
+	final static int BACKGROUNDS = 2;
+	final static int maxWidth = 99, maxHeight = 99, maxMines = 9800;
+	
+	Rectangle2D [] smileyViewPorts = new Rectangle2D[SMILEYS];
+	Rectangle2D [] tileViewPorts = new Rectangle2D[SPRITES];
+	Image smileyImages = new Image("smileys.png");
+	Image tileImages = new Image("tileSprites.png");
+	ImageView [] smileyImageViews = new ImageView[SMILEYS];
+	ImageView [] tileImageViews = new ImageView[SPRITES];
+	ImageView [] smileyBackgroundViews = new ImageView[BACKGROUNDS];
+	private Stage mainStage;	
+	Popup customPopup = new Popup();
+	
+	
 	public void start(Stage primaryStage) {
-		smiley = setUpButton(smileySize, 12, 12);
-		smileyBackground = setUpButton(smileySizeBackground, 5, 5);
-		setButtonImage(smiley, "smileys.png", smileySize, 0, 0, smileyPxs);
-		setButtonImage(smileyBackground, "sprites.jpg", smileySizeBackground, 0, 0, imgPxs);
+				
+		this.mainStage = primaryStage;
+		MenuBar mb = setUpMenus();
+		initialiseViewPorts();
+		initialiseImageViews();
+		smiley = setUpButton(smileySize);
+		smileyBackground = setUpButton(smileySizeBackground);
+		updateButton(smiley, smileyImageViews[0]);
+		updateButton(smileyBackground, smileyBackgroundViews[0]);
 		timerT = new Timer();
-		task = setTimerTask();
 		setUpSmiley();
+
+		
+		// Outer pane (light 3D edge)
+		StackPane outerPane = new StackPane();
+		outerPane.setStyle(
+		    "-fx-background-color: #C0C0C0;" +
+		    "-fx-border-style: solid;" +
+		    // White top/left, dark gray bottom/right
+		    "-fx-border-color: white gray gray white;" +
+		    "-fx-border-width: 3;"
+		);
+
+		// Inner pane (slightly darker edge inside)
+		StackPane innerPane = new StackPane();
+		innerPane.setStyle(
+		    "-fx-border-style: solid;" +
+		    // Mid-gray top/left, white bottom/right
+		    "-fx-border-color: #808080 #FFFFFF #FFFFFF #808080;" +
+		    "-fx-border-width: 2;" +
+		    "-fx-background-color: #C0C0C0;" 
+		);
+		outerPane.getChildren().add(innerPane);
 		bPane = new BorderPane();
 		sPane = new StackPane();
-		scorePane = new GridPane();
+		scorePane = new BorderPane();
 		gridPane = new GridPane();
 		scoreboard = setUpDisplay(mineCounterStr);
 		timer = setUpDisplay(""+fillZeroes(time));
 		scoreboard.setBackground(new Background(new BackgroundFill(Color.BLACK, new CornerRadii(0), new Insets(0))));
 		timer.setBackground(new Background(new BackgroundFill(Color.BLACK, new CornerRadii(0), new Insets(0))));
-		timer.setAlignment(Pos.TOP_RIGHT);
 		setUpCells();
 		sPane.getChildren().add(smileyBackground);
 		sPane.getChildren().add(smiley);
-		StackPane.setAlignment(smileyBackground, Pos.TOP_LEFT);
-		StackPane.setAlignment(smiley, Pos.TOP_LEFT);
-		scorePane.add(scoreboard, 0, 0);
-		scorePane.add(sPane, 1, 0);
-		sPane.setAlignment(Pos.TOP_RIGHT);
-		scorePane.setHgap(25);
-		scorePane.setAlignment(Pos.CENTER);
-		scorePane.add(timer, 2, 0);
+		StackPane.setAlignment(smileyBackground, Pos.CENTER);
+		StackPane.setAlignment(smiley, Pos.CENTER);
+		scorePane.setLeft(scoreboard);
+		scorePane.setCenter(sPane);
+		scorePane.setRight(timer);
+		
 		ColumnConstraints cc = new ColumnConstraints();
-		cc.setPercentWidth(100 / 3);
-		scorePane.getColumnConstraints().add(cc);
-		scorePane.getColumnConstraints().add(cc);
-		scorePane.getColumnConstraints().add(cc);
-		bPane.setTop(scorePane);
-		bPane.setCenter(gridPane);
-		Scene scene = new Scene(bPane, tileSize * gridWidth + 2 * 5,
-				tileSize * gridHeight + 2 * 5 + smileySizeBackground + 5);
+		VBox topContainer = new VBox();
+		topContainer.getChildren().addAll(mb, scorePane);
+		
+		bPane.setTop(topContainer);
+		bPane.setCenter(gridPane);		
+		
+		innerPane.getChildren().add(bPane);
+		Scene scene = new Scene(outerPane);
+		
 		scene.getStylesheets().add(getClass().getResource("application.css").toExternalForm());
+		primaryStage.setResizable(true);
 		primaryStage.setScene(scene);
 		primaryStage.setTitle("Minesweeper");
-		primaryStage.getIcons().add(new Image("mine.jpg"));
+		primaryStage.getIcons().add(new Image("Minesweeper.jpg"));
+//		primaryStage.initStyle(StageStyle.UNDECORATED);
 		primaryStage.show();
 		primaryStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
 			@Override
@@ -98,18 +154,313 @@ public class Main extends Application {
 		});
 	}
 	
+	private MenuBar setUpMenus() {
+		Menu game = new Menu("_Game");
+		game.setMnemonicParsing(true);
+		MenuItem newGame = new MenuItem("_New"); 
+		newGame.setMnemonicParsing(true);
+		newGame.setAccelerator(new KeyCodeCombination(KeyCode.F2));
+		
+		ToggleGroup difficulty = new ToggleGroup();
+        RadioMenuItem beginner = new RadioMenuItem("_Beginner");
+        beginner.setSelected(true);
+        beginner.setMnemonicParsing(true);
+
+        RadioMenuItem intermediate = new RadioMenuItem("_Intermediate");
+        intermediate.setSelected(false);
+        intermediate.setMnemonicParsing(true);
+
+        RadioMenuItem expert = new RadioMenuItem("_Expert");
+        expert.setSelected(false);
+        expert.setMnemonicParsing(true);
+
+        RadioMenuItem custom = new RadioMenuItem("_Custom...");
+        custom.setSelected(false);
+        custom.setMnemonicParsing(true);
+        
+        beginner.setOnAction(new EventHandler<ActionEvent>() {
+            @Override public void handle(ActionEvent e) {
+            	newGame(9, 9, 10);
+            }
+        });
+        intermediate.setOnAction(new EventHandler<ActionEvent>() {
+            @Override public void handle(ActionEvent e) {
+            	newGame(16, 16, 40);
+            }
+        });
+        expert.setOnAction(new EventHandler<ActionEvent>() {
+            @Override public void handle(ActionEvent e) {
+            	newGame(30, 16, 99);
+            }
+        });
+        custom.setOnAction(new EventHandler<ActionEvent>() {
+            @Override public void handle(ActionEvent e) {
+            	showCustomDialog();
+            }
+        });
+        beginner.setToggleGroup(difficulty);
+        intermediate.setToggleGroup(difficulty);
+        expert.setToggleGroup(difficulty);
+        custom.setToggleGroup(difficulty);
+        
+        MenuItem marks = new MenuItem("_Marks (?)");
+        marks.setMnemonicParsing(true);
+        MenuItem color = new MenuItem("_Color");
+        color.setMnemonicParsing(true);
+        MenuItem sound = new MenuItem("_Sound");
+        sound.setMnemonicParsing(true);
+        MenuItem times = new MenuItem("Best _Times...");
+        times.setMnemonicParsing(true);
+        MenuItem exit = new MenuItem("E_xit");
+        exit.setMnemonicParsing(true);
+        
+    	newGame.setOnAction(e -> {
+    		resetBoard();
+    	});
+        
+        exit.setOnAction(e -> {
+			Platform.exit();
+			System.exit(0);
+        });
+        
+		Menu help = new Menu("_Help");
+		help.setMnemonicParsing(true);
+        MenuItem index = new MenuItem("_Index"); 
+        index.setMnemonicParsing(true);
+		MenuItem play = new MenuItem("_How to Play"); 
+		index.setAccelerator(new KeyCodeCombination(KeyCode.F1));
+
+		play.setMnemonicParsing(true);
+		MenuItem commands = new MenuItem("_Commands"); 
+		commands.setMnemonicParsing(true);
+		MenuItem usingHelp = new MenuItem("Using _Help"); 
+		usingHelp.setMnemonicParsing(true);
+		MenuItem about = new MenuItem("_About Minesweeper..."); 
+
+		about.setMnemonicParsing(true);
+        game.getItems().addAll(newGame, beginner, intermediate, expert, custom, marks, color, sound, times, exit); 
+        
+        help.getItems().addAll(index, play, commands, usingHelp, about);
+  
+	    SeparatorMenuItem sep = new SeparatorMenuItem();
+	    SeparatorMenuItem sep2 = new SeparatorMenuItem();
+	    SeparatorMenuItem sep3 = new SeparatorMenuItem();
+	    SeparatorMenuItem sep4 = new SeparatorMenuItem();
+	    SeparatorMenuItem sep5 = new SeparatorMenuItem();
+
+	    game.getItems().add(1, sep);
+	    game.getItems().add(6, sep2);
+	    game.getItems().add(10, sep3);
+	    game.getItems().add(12, sep4);
+	    
+	    help.getItems().add(4, sep5);
+        MenuBar mb = new MenuBar();
+        mb.getMenus().addAll(game, help);
+        return mb;
+	}
+	
+	
+	private void showCustomDialog() {
+		
+		Stage dialog = new Stage();
+		dialog.setTitle("Custom Field");
+		dialog.initModality(Modality.APPLICATION_MODAL);
+		
+		GridPane gp = new GridPane();
+		gp.setHgap(10);
+		gp.setVgap(10);
+		gp.setPadding(new Insets(10));
+		
+		Label widthLabel = new Label("_Width:");
+		widthLabel.setMnemonicParsing(true);
+		Label heightLabel = new Label("_Height:");
+		heightLabel.setMnemonicParsing(true);
+		Label minesLabel = new Label("_Mines:");
+		minesLabel.setMnemonicParsing(true);
+		TextField widthField = new TextField("" + customWidth);
+		TextField heightField = new TextField("" + customHeight);
+		TextField minesField = new TextField("" + customMines);
+		widthField.setMaxWidth(50);
+		heightField.setMaxWidth(50);
+		minesField.setMaxWidth(50);
+		minesField.setOnMouseClicked(e -> minesField.setStyle("-fx-text-fill: black;"));
+		widthField.setTextFormatter(setTextFormat(maxWidth));
+		heightField.setTextFormatter(setTextFormat(maxHeight));
+		minesField.setTextFormatter(setTextFormat(maxMines));
+		
+		Button okButton = new Button("OK");
+		Button cancelButton = new Button("Cancel");
+
+		cancelButton.setOnAction(e -> {
+			dialog.close();
+        });
+		
+		okButton.setOnAction(e -> {
+			customWidth = Integer.valueOf(widthField.getText());
+			customHeight = Integer.valueOf(heightField.getText());
+			customMines = Integer.valueOf(minesField.getText());
+			if(validCustom()) {
+				resizeBoard();
+				initialiseImageViews();
+				newGame(customWidth, customHeight, customMines);
+				dialog.close();
+			}else {
+				System.out.println("Invalid custom parameters");
+				minesField.setStyle("-fx-text-fill: red;");
+			}
+		});
+		
+		HBox buttonBox = new HBox(10, okButton, cancelButton);
+
+		
+		gp.add(heightLabel, 0, 0);
+		gp.add(widthLabel, 0, 1);
+		gp.add(minesLabel, 0, 2);
+		gp.add(heightField, 1, 0);
+		gp.add(widthField, 1, 1);
+		gp.add(minesField, 1, 2);
+		gp.add(okButton, 2, 0);
+		gp.add(cancelButton, 2, 1);
+		
+		Scene scene = new Scene(gp, 200, 150);
+		dialog.setScene(scene);
+		dialog.showAndWait();
+	
+	}
+	
+	private void resizeBoard() {
+		int divider = customWidth > 1.78 * customHeight ? (int)(customWidth / 1.78) : customHeight;
+		if(900 / divider < 16) {
+			tileSize = 900 / divider;
+		}else {
+			tileSize = 16;
+		}
+	}
+	
+	private boolean validCustom() {
+		return customMines + 9 <= customWidth * customHeight;
+	}
+	
+	
+	private TextFormatter<Object> setTextFormat(int max) {
+		return new TextFormatter<>(change -> {
+		    // Only allow digits
+		    String newText = change.getControlNewText();
+		    if (!newText.matches("\\d*")) {
+		        return null; // Reject non-digit input
+		    }
+		    // Enforce numeric range, e.g. 1–99
+		    try {
+		    	if (newText.length() > String.valueOf(max).length()) {
+		    		return null;
+		    	}
+		        int value = Integer.parseInt(newText);
+		        if (value < 1 || value > max) {
+		            return null; // Reject out-of-range
+		        }
+		    } catch (NumberFormatException e) {
+		        // Empty string or invalid number
+		        if (!newText.isEmpty()) {
+		            return null;
+		        }
+		    }
+		    return change; // Accept
+		});
+	}
+	
+	private void newGame(int width, int height, int mines) {
+    	gridWidth = width;
+    	gridHeight = height;
+    	numberOfMines = mines;
+    	this.minesLocations = new boolean[width][height];
+    	this.flags = new boolean[width][height];
+    	this.mineFrequencies = new int[width][height];
+    	this.tiles = new Button[width][height];
+    	bPane.getChildren().remove(gridPane);
+    	gridPane = new GridPane();
+    	setUpCells();
+    	bPane.setCenter(gridPane);
+    	Scene scene = bPane.getScene();
+    	System.out.println("scene x: " + scene.getX() + " scene y: " + scene.getY());
+       	mainStage.sizeToScene();
+    	resetBoard();
+	}
+	
+	private void initialiseViewPorts() {
+		for(int i = 0; i < SMILEYS; i++) {
+			Rectangle2D smiley = setTileRectangle(i % SMILEYS_ROW, i / SMILEYS_ROW, smileyPxs);
+			smileyViewPorts[i] = smiley;
+		}
+	
+		for(int j = 0; j < SPRITES; j++) {
+			Rectangle2D sprite = setTileRectangle(j % SPRITES_ROW, j / SPRITES_ROW, imgPxs);
+			tileViewPorts[j] = sprite;
+		}
+	}
+	
+	private void initialiseImageViews() {
+		for (int i = 0; i < SMILEYS; i++) {
+			smileyImageViews[i] = setImageView(smileyImages, smileySize, smileyViewPorts[i]);
+		}
+		for (int i = 0; i < SPRITES; i++) {
+			tileImageViews[i] = setImageView(tileImages, tileSize, tileViewPorts[i]);
+		}
+		smileyBackgroundViews[0] = setImageView(tileImages, smileySizeBackground, tileViewPorts[9]);
+		smileyBackgroundViews[1] = setImageView(tileImages, smileySizeBackground, tileViewPorts[0]);
+	}
+	
+	private ImageView setImageView(Image image, int size, Rectangle2D viewPort) {
+		ImageView imageView = setImageView(image, size);
+		imageView.setViewport(viewPort);
+		return imageView;
+	}
+	
+	private ImageView setImageView(Image image, int size) {
+		ImageView imageView = new ImageView(image);
+		imageView.setFitWidth(size);
+		imageView.setFitHeight(size);
+		return imageView;
+	}
+	
+	public Image setImage(String path) {
+		Image image = new Image(path);
+		return image;
+	}
+	
+	public ImageView setImageView(String path, int buttonSize, int x, int y, int size) {
+		Image image = new Image(path);
+		ImageView imageView = new ImageView(image);
+		Rectangle2D viewPort = new Rectangle2D(x, y, size, size);
+		imageView.setFitWidth(buttonSize);
+		imageView.setFitHeight(buttonSize);
+		imageView.setViewport(viewPort);
+		return imageView;
+	}
+	
+	public static ImageView copyImageView(ImageView original) {
+	    ImageView copy = new ImageView(original.getImage());
+	    copy.setFitWidth(original.getFitWidth());
+	    copy.setFitHeight(original.getFitHeight());
+	    copy.setViewport(original.getViewport());
+	    return copy;
+	}
+	
+	private void updateButton (Button button, ImageView imageView) {
+		button.setGraphic(copyImageView(imageView));
+	}
+		
+	private Rectangle2D setTileRectangle(int i, int j, int pxs) {
+		return new Rectangle2D(i * pxs, j * pxs, pxs, pxs);
+	}
+	
+	
 	private void setUpCells() {
 		iterateOverAllCells((i, j) -> setUpButtonsFirstTime(i, j));
 	}
 	
-	private void resetBoard() {
-		gridPane.getChildren().clear();
-		iterateOverAllCells((i, j) -> resetBoardHelper(i, j));
-	}
-	
 	private void setUpButtonsFirstTime(int i, int j) {
-		tiles[i][j] = setUpButton(tileSize, 5, 10);
-		setButtonImage(tiles[i][j], "sprites.jpg", tileSize, 0, 0, imgPxs);
+		tiles[i][j] = setUpButton(tileSize);
+		updateButton(tiles[i][j], tileImageViews[9]);
 		setUpTile(i, j);
 		gridPane.add(tiles[i][j], i, j);
 	}
@@ -126,52 +477,37 @@ public class Main extends Application {
 		Label label = new Label(str);
 		label.setTextFill(Color.RED);
 		label.setFont(font);
-		label.setTranslateX(5);
-		label.setTranslateY(5);
 		return label;
 	}
 
 	private void setUpSmiley() {
-		setButtonImage(smiley, "smileys.png", smileySize, 0, 0, smileyPxs);
-		setButtonImage(smileyBackground, "sprites.jpg", smileySizeBackground, 0, 0, imgPxs);
-		smiley.setOnMouseClicked(event -> {
-			System.out.println("Mouse Clicked, resetting board...");
-			if (event.getButton() == MouseButton.SECONDARY) {
-				gameComplete();
-			}
-		});
+		updateButton(smiley, smileyImageViews[0]);
+		updateButton(smileyBackground, smileyBackgroundViews[0]);
 		smiley.setOnMousePressed(event -> {
-//			System.out.println("Mouse Pressed");
 			if (event.getButton() == MouseButton.PRIMARY) {
-				setButtonImage(smileyBackground, "sprites.jpg", smileySizeBackground, 3 * imgPxs, 0, imgPxs);
+				updateButton(smileyBackground, smileyBackgroundViews[1]);
 			}
 		});
 		smiley.setOnMouseReleased(event -> {
-//			System.out.println("Mouse Released");
 			if (event.getButton() == MouseButton.PRIMARY) {
-				setButtonImage(smileyBackground, "sprites.jpg", smileySizeBackground, 0, 0, imgPxs);
-				timerT.cancel();
-				time = 0;
-				timer.setText(fillZeroes(time));
+				updateButton(smileyBackground, smileyBackgroundViews[0]);
 				resetBoard();
 			}
 		});
 		smileyBackground.setOnMousePressed(event -> {
-//			System.out.println("Mouse Pressed");
 			if (event.getButton() == MouseButton.PRIMARY) {
-				setButtonImage(smileyBackground, "sprites.jpg", smileySizeBackground, 3 * imgPxs, 0, imgPxs);
+				updateButton(smileyBackground, smileyBackgroundViews[1]);
 			}
 		});
 		smileyBackground.setOnMouseReleased(event -> {
-			System.out.println("Mouse Released");
 			if (event.getButton() == MouseButton.PRIMARY) {
-				setButtonImage(smileyBackground, "sprites.jpg", smileySizeBackground, 0, 0, imgPxs);
+				updateButton(smileyBackground, smileyBackgroundViews[0]);
 			}
 		});
 	}
 
 	TimerTask setTimerTask() {
-		task = new TimerTask() {
+		TimerTask task = new TimerTask() {
 			public void run() {
 				Platform.runLater(new Runnable() {
 					public void run() {
@@ -202,27 +538,16 @@ public class Main extends Application {
 		return leadingZeroes + mineCounter;
 	}
 
-	public Button setUpButton(int buttonSize, int x, int y) {
+	public Button setUpButton(int buttonSize) {
 		Button button = new Button();
 		button.setMaxSize(buttonSize, buttonSize);
 		button.setMinSize(buttonSize, buttonSize);
-		button.setTranslateX(x);
-		button.setTranslateY(y);
 		button.setStyle("-fx-focus-color: transparent;");
 		button.setStyle("-fx-faint-focus-color: transparent;");
 		button.setStyle("-fx-background-color: transparent;");
 		return button;
 	}
 
-	public void setButtonImage(Button button, String path, int buttonSize, int x, int y, int size) {
-		Image image = new Image(path);
-		ImageView imageView = new ImageView(image);
-		Rectangle2D viewPort = new Rectangle2D(x, y, size, size);
-		imageView.setFitWidth(buttonSize);
-		imageView.setFitHeight(buttonSize);
-		imageView.setViewport(viewPort);
-		button.setGraphic(imageView);
-	}
 
 	public Node getNodeByRowColumnIndex(final int row, final int column) {
 		Node result = null;
@@ -234,12 +559,6 @@ public class Main extends Application {
 			}
 		}
 		return result;
-	}
-
-	private void resetBoardHelper(int i, int j) {
-		Button tile = setUpButton(tileSize, rows, columns);
-		setButtonImage(tile, "sprites.jpg", tileSize, 0, 0, imgPxs);
-		gridPane.add(tile, i, j);
 	}
 	
 	private ArrayList<Integer> setUpCell(int i, int j){
@@ -253,82 +572,97 @@ public class Main extends Application {
 		ArrayList<Integer> cell = setUpCell(i, j);
 		tiles[i][j].setOnMouseClicked(event -> {
 			if (event.getButton() == MouseButton.PRIMARY) {
-				if(firstTime) {
-					generateMines(i, j);
-					populateMineFrequencies();
-					firstTime = false;
-				}
-				if(!cellsExposed.contains(cell)) {
-					ImageView thisImage = updateImageView(i, j);
-					flags[i][j] = false;
-					validAdd(cellsExposed, cell);
-					if(mineFrequencies[i][j] == 0) {
-						emptyCells.clear();
-						mineFrequencies[i][j] = -1;
-						collectEmptyCells(i, j); 
-						collectNonEmptyCells() ;
-	//					System.out.println("All elements in connected group of empty cells:");
-						for (ArrayList<Integer> thisCell: emptyCells)
-						{
-	//						System.out.println(" (" + thisCell[0] + ", " + thisCell[1] + ")");
-							tiles[thisCell.get(0)][thisCell.get(1)].setGraphic(updateImageView(thisCell.get(0), thisCell.get(1)));
-							validAdd(cellsExposed, thisCell);
-						}
-	//					System.out.println("All elements in connected group of non-empty cells:");
-						for (ArrayList<Integer> nonEmpty: nonEmptyCells) {
-	//						System.out.println(" (" + nonEmpty[0] + ", " + nonEmpty[1] + ")");
-							tiles[nonEmpty.get(0)][nonEmpty.get(1)].setGraphic(updateImageView(nonEmpty.get(0), nonEmpty.get(1)));
-							validAdd(cellsExposed, nonEmpty);
-						}
+				if(!gameOver && !gameWon && !flags[i][j]) {
+					if(firstTime) {
+						generateMines(i, j);
+						populateMineFrequencies();
+						firstTime = false;
 					}
-					tiles[i][j].setGraphic(thisImage);
-			}
+					if(minesLocations[i][j]) {
+						gameOver(i, j);
+					}
+					else if(!cellsExposed.contains(cell)) {
+						ImageView thisImage = updateImageView(i, j);
+						flags[i][j] = false;
+						validAdd(cellsExposed, cell);
+						if(mineFrequencies[i][j] == 0) {
+							emptyCells.clear();
+							mineFrequencies[i][j] = -1;
+							collectEmptyCells(i, j); 
+							collectNonEmptyCells() ;
+							for (ArrayList<Integer> thisCell: emptyCells)
+							{
+								int x = thisCell.get(0);
+								int y = thisCell.get(1);
+								updateButton(tiles[x][y], updateTile(x, y));
+								validAdd(cellsExposed, thisCell);
+							}
+							for (ArrayList<Integer> nonEmpty: nonEmptyCells) {
+								int x = nonEmpty.get(0);
+								int y = nonEmpty.get(1);
+								updateButton(tiles[x][y], updateTile(x, y));
+								validAdd(cellsExposed, nonEmpty);
+							}
+						}
+						updateButton(tiles[i][j], updateTile(i, j));
+					}
+				}
+				checkWon();
 			} else if (event.getButton() == MouseButton.SECONDARY) {
-				if(!cellsExposed.contains(cell) && !flags[i][j]) {
-					System.out.println("Here flag");
-					setButtonImage(tiles[i][j], "sprites.jpg", tileSize, imgPxs, 0, imgPxs);
-					mineCounter--;
-					System.out.println("Mines: " + mineCounter);
-					mineCounterStr = fillZeroes(mineCounter);
-					scoreboard.setText(mineCounterStr);
-					cellsExposed.add(cell);
-					flags[i][j] = true;
-				}else if(flags[i][j]){
-					System.out.println("Here not flag");
-					setButtonImage(tiles[i][j], "sprites.jpg", tileSize, 0, 0, imgPxs);
-					mineCounter++;
-					System.out.println("Mines: " + mineCounter);
-					mineCounterStr = fillZeroes(mineCounter);
-					scoreboard.setText(mineCounterStr);
-					flags[i][j] = false;
-					cellsExposed.remove(cell);
+				if(!gameOver && !gameWon) {
+					if(!cellsExposed.contains(cell) && !flags[i][j]) {
+						updateButton(tiles[i][j], tileImageViews[11]);
+						mineCounter--;
+						mineCounterStr = fillZeroes(mineCounter);
+						scoreboard.setText(mineCounterStr);
+						cellsExposed.add(cell);
+						flags[i][j] = true;
+					}else if(flags[i][j]){
+						updateButton(tiles[i][j], tileImageViews[9]);
+						mineCounter++;
+						mineCounterStr = fillZeroes(mineCounter);
+						scoreboard.setText(mineCounterStr);
+						flags[i][j] = false;
+						cellsExposed.remove(cell);
+					}
 				}
 			}
 		});
 		tiles[i][j].setOnMousePressed(event -> {
-//			System.out.println("Mouse Pressed");
-			if (event.getButton() == MouseButton.PRIMARY) {
-				setButtonImage(smiley, "smileys.png", smileySize, smileyPxs, 0, smileyPxs);
+			if(!gameOver && !gameWon) {
+				if (event.getButton() == MouseButton.PRIMARY) {
+					updateButton(smiley, smileyImageViews[1]);
+				}
 			}
 		});
 		tiles[i][j].setOnMouseReleased(event -> {
-//			System.out.println("Mouse Released");
-			if (event.getButton() == MouseButton.PRIMARY) {
-				if (minesLocations[i][j]) {
-					if(!flags[i][j]) {
-						setButtonImage(smiley, "smileys.png", smileySize, smileyPxs, smileyPxs, smileyPxs);
-					}else {
-						setButtonImage(smiley, "smileys.png", smileySize, 0, 0, smileyPxs);
-					}
-				} 
-				else {
-					setButtonImage(smiley, "smileys.png", smileySize, 0, 0, smileyPxs);
-					if (time == 0) {
-						timerT.scheduleAtFixedRate(task, 2, 1000);
+			if(!gameOver && !gameWon) {
+				if (event.getButton() == MouseButton.PRIMARY) {
+					if (minesLocations[i][j]) {
+						if(!flags[i][j]) {
+							updateButton(smiley, smileyImageViews[3]);
+						}else {
+							updateButton(smiley, smileyImageViews[0]);
+						}
+					} 
+					else {
+						updateButton(smiley, smileyImageViews[0]);
+						if (time == 0 && firstTime) {
+							timerT.scheduleAtFixedRate(setTimerTask(), 0, 1000);
+						}
 					}
 				}
 			}
 		});
+	}
+	
+	private void checkWon() {
+		if(!gameOver) {
+			if(cellsExposed.size() == gridHeight * gridWidth - mineCounter) {
+				gameWon = true;
+				gameWon();
+			}
+		}
 	}
 
 	private ImageView updateImageView(int i, int j) {
@@ -341,18 +675,32 @@ public class Main extends Application {
 	}
 	
 	private Rectangle2D setViewPort(int i, int j) {
-		Rectangle2D viewportRect2;
+		Rectangle2D viewPort;
 		if (minesLocations[i][j]) {
-			viewportRect2 = setTileRectangle(2, 0);
+			viewPort = tileViewPorts[2];
 		} 
 		else if (mineFrequencies[i][j] == 0 || mineFrequencies[i][j] == -1) {
-			viewportRect2 = setTileRectangle(3, 0);
+			viewPort = tileViewPorts[3];
 		} else {
-			viewportRect2 = new Rectangle2D(((mineFrequencies[i][j] - 1) % 4) * imgPxs, (1 + (mineFrequencies[i][j] - 1) / 4) * imgPxs, imgPxs, imgPxs);
+			viewPort = tileViewPorts[mineFrequencies[i][j]+3];
 		}
-		return viewportRect2;
+		return viewPort;
 	}
 	
+	private ImageView updateTile(int i, int j) {
+		ImageView tile = new ImageView();
+		if (minesLocations[i][j]) {
+			tile = tileImageViews[14];
+		} 
+		else if (mineFrequencies[i][j] == -1) {
+			tile = tileImageViews[0];
+		} 
+		else {
+			tile = tileImageViews[mineFrequencies[i][j]];
+		}
+		return tile;
+	}
+		
 	private void collectEmptyCells(int i, int j) {
 		ArrayList<ArrayList<Integer>> cells = getNeighbouringCells(i, j, (a, b) -> checkCellEmpty(a, b));
 		for (ArrayList<Integer> cell: cells)
@@ -414,39 +762,34 @@ public class Main extends Application {
 		return cells;
 	}
 	
-	private Rectangle2D setTileRectangle(int i, int j) {
-		return new Rectangle2D(i * imgPxs, j * imgPxs, imgPxs, imgPxs);
-	}
-	
 	private void generateMines(int x, int y) {
 		ArrayList<Integer> mines = new ArrayList<>();
 		ArrayList<Integer> excluded = new ArrayList<Integer>();
-		excluded.add(y*gridWidth + x);
+		excluded.add(y * gridWidth + x);
 		for (int[] offset : NEIGHBOR_OFFSETS) {
 			if (isValidNeighbour(x + offset[0], y + offset[1])) {
 				excluded.add((y + offset[1]) * gridWidth + (x + offset[0]));
-				System.out.println("x, y, offset[0], offset[1]: " + x + y + offset[0] + offset[1]);
 			}
 		}
-		for (int i = 0; i < numberOfMines; i++) {
-			int thisMine;
-			do {
-				thisMine = getRandomMineExcluding(excluded);
-				mines.add(thisMine);
-			} while (!mines.contains(thisMine));
-		}
+		mines = getRandomMineExcluding(excluded);
 		for (int i = 0; i < numberOfMines; i++) {		
 			minesLocations[mines.get(i) % gridWidth][mines.get(i) / gridWidth] = true;
+			ArrayList<Integer> mine = setUpCell(mines.get(i) % gridWidth, mines.get(i) / gridWidth);
+			validAdd(mineCoords, mine);
 		}
 	}
 	
-	private int getRandomMineExcluding(ArrayList<Integer> excluded) {
-		Random random = new Random();
-		int rand;
-		do {
-			rand = random.nextInt(gridWidth * gridHeight);
-		} while (excluded.contains(rand));
-		return rand;
+	private ArrayList<Integer> getRandomMineExcluding(ArrayList<Integer> excluded) {
+		ArrayList<Integer> mines = new ArrayList<>();
+		int mine;
+		for (int i = 0; i < numberOfMines; i++) {
+			do {
+				mine = new Random().nextInt(gridWidth * gridHeight);
+			} while (excluded.contains(mine));
+			mines.add(mine);
+			excluded.add(mine);
+		}
+		return mines;
 	}
 	
 	private void populateMineFrequencies() {
@@ -466,9 +809,61 @@ public class Main extends Application {
 			mineFrequencies[i][j] = mineCount.get();
 		}
 	}
+	
+	private void resetBoard() {
+		updateButton(smiley, smileyImageViews[0]);
+		iterateOverAllCells((i, j) -> resetBoardHelper(i, j));
+		timerT.cancel();
+		time = -1;
+		updateLabel();
+		timerT = new Timer();
+		mineCounter = numberOfMines;
+		mineCounterStr = fillZeroes(mineCounter);
+		scoreboard.setText(mineCounterStr);
+		emptyCells.clear();
+		nonEmptyCells.clear();
+		cellsExposed.clear();
+		for (int r = 0; r < gridWidth; r++) {
+			Arrays.fill(mineFrequencies[r], 0);
+			Arrays.fill(flags[r], false);
+			Arrays.fill(minesLocations[r], false);
+		}
+		firstTime = true;
+		gameOver = false;
+		gameWon = false;
+	}
+	
+	private void resetBoardHelper(int i, int j) {
+		updateButton(tiles[i][j], tileImageViews[9]);
+	}
+	
+	private void gameOver(int i, int j) {
+		iterateOverAllCells((a, b) -> checkCellCombinations(a, b));
+		updateButton(tiles[i][j], tileImageViews[10]);
+		timerT.cancel();
+		gameOver = true;
+	}
+	
+	private void checkCellCombinations(int i, int j) {
+		if(!flags[i][j] && minesLocations[i][j]) {
+			updateButton(tiles[i][j], tileImageViews[14]);
+		}else if(flags[i][j] && !minesLocations[i][j]) {
+			updateButton(tiles[i][j], tileImageViews[12]);
+		}
+	}
+	
+	private void turnOverRemainingFlags(int i, int j) {
+		ArrayList<Integer> cell = setUpCell(i, j);
+		if(!cellsExposed.contains(cell)) {
+			updateButton(tiles[i][j], tileImageViews[11]);
+		}
+	}
+	
+	private void gameWon() {
+		timerT.cancel();
+		iterateOverAllCells((i, j) -> turnOverRemainingFlags(i, j));
+		updateButton(smiley, smileyImageViews[2]);
 
-	private void gameComplete() {
-		setButtonImage(smiley, "smileys.png", smileySize, 0, smileyPxs, smileyPxs);
 	}
 
 	public static void main(String[] args) {
