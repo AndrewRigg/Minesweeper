@@ -1,0 +1,96 @@
+/* styles/titlebar.css */
+.title-button {
+    -fx-background-color: #C0C7C8;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+    -fx-border-radius: 0; /* No rounding */
+    -fx-text-fill: black; /* Text color */
+    -fx-alignment: center; /* Center alignment */
+    -fx-underline: false;                /* Disables text underlining */
+    -fx-border-width: 0;                 /* Removes any border thickness */
+    -fx-background-insets: 0;            /* Removes background padding */
+    -fx-padding: 0;
+    -fx-border-style: solid;
+    -fx-border-color: white black black white;
+}
+
+/*White top/left, dark gray bottom/right*/
+.shadow-effect-convex {
+    -fx-background-color: #C0C7C8;
+    -fx-border-style: solid;
+    -fx-border-color: white #87888F #87888F white;
+}
+
+.shadow-effect-concave {
+    -fx-background-color: #C0C7C8;
+    -fx-border-style: solid;
+    -fx-border-color: #87888F white white #87888F;
+}
+
+.shadow-effect-black-outline {
+    -fx-background-color: #C0C0C0;
+    -fx-border-style: solid;
+    -fx-border-color: black, transparent, transparent, transparent;
+    -fx-border-width: 1;
+}
+
+.outside-border {
+    -fx-background-color: #C0C0C0;
+    -fx-border-style: solid;
+    -fx-border-color: #C0C7C8 black black #C0C7C8;
+    -fx-border-width: 1;
+}
+.inner-outer-border {
+    -fx-background-color: #C0C0C0;
+    -fx-border-style: solid;
+    -fx-border-color: white #87888F #87888F white;
+    -fx-border-width: 1;
+}
+
+.inner-border {
+    -fx-background-color: #C0C0C0;
+    -fx-border-style: solid;
+    -fx-border-color: #C0C7C8;
+    -fx-border-width: 1;
+}
+
+.border-size-small {
+    -fx-border-width: 1;
+}
+
+.border-size-medium {
+    -fx-border-width: 2;
+}
+
+.border-size-large {
+    -fx-border-width: 3;
+}
+
+.scoreboard {
+    -fx-padding: 0;
+    -fx-alignment: center;
+    -fx-text-fill: red;
+    -fx-background-insets: 0; /* Ensures the border is tight */
+    -fx-border-insets: 0;
+}
+
+.board-spane {
+    -fx-padding: 0;
+    -fx-border-insets: 2;
+}
+
+.menu {
+    -fx-font-family: "MS Gothic"; /* Font family */
+    -fx-font-size: 12;      /* Font size */
+    -fx-alignment: center;   /* Align text in the Menu (center, left, right) */
+    -fx-padding: 0 10 0 0;  /* Add padding inside the Menu */
+}
+
+.menu-item {
+    -fx-font-family: "MS Gothic";
+    -fx-font-size: 12px;
+}
+
+.menu-bar {
+    -fx-padding: 2 0 1 7;
+}
